@@ -1,7 +1,6 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 
-const adminProcessor = require("./processors/mod-admin");
 const utilProcessor = require("./processors/mod-util");
 const dmProcessor = require("./processors/mod-direct-message");
 
@@ -13,7 +12,8 @@ client.on('ready', () => {
 });
 
 client.on('disconnect', function(msg, code) {
-  if (code === 0) return console.error(msg);
+  if (code === 0)
+    return console.error(msg);
   client.login(process.env.token);
 });
 
@@ -26,9 +26,6 @@ client.on('message', message => {
 
   var processor;
   switch (module) {
-    case MOD_ADMIN:
-      processor = adminProcessor;
-      break;
     case MOD_UTIL:
       processor = utilProcessor;
       break;
@@ -39,4 +36,7 @@ client.on('message', message => {
     processor(message);
 });
 
-client.login(process.env.token);
+client.login(process.env.token)
+  .catch(e => {
+    console.log(e);
+  });

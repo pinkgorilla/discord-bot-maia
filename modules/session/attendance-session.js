@@ -1,31 +1,36 @@
 const NUM_OF_STEPS = 5;
-module.exports = class Attendance {
+var Session = require("./session");
 
-    constructor(user) {
-        this.user = user;
-        this.date = Date.now;
-        this.attend = false;
-        this.gained = "";
-        this.shared = "";
-        this.reason = "";
+module.exports = class AttendanceSession extends Session {
+
+    constructor(dmChannel) {
+        super(dmChannel, "Attendance Session");
+        this.data = {};
+        this.data.date = Date.now;
+        this.data.attend = false;
+        this.data.gained = "";
+        this.data.shared = "";
+        this.data.reason = "";
+
         this.step = 1;
         this.messages = ["",
-            `Hallo ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`,
+            `Hallo ${this.user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`,
             "Apakah hal yang anda dapatkan di pertemuan DATE kemarin?",
             "Apakah hal yang anda bagikan di pertemuan DATE kemarin?",
             "Apakah alasan anda tidak menghadiri pertemuan DATE?",
-            "Selesai, Terima kasih sudah meluangkan waktu untuk mengisi absen."];
+            "Selesai, Terima kasih sudah meluangkan waktu untuk mengisi absen."
+        ];
     }
 
     isComplete() {
         return this.step === NUM_OF_STEPS;
     }
 
-    reply() {
+    response() {
         return this.messages[this.step];
     }
 
-    validate(answer) {
+    process(answer) {
         switch (this.step) {
             case 1:
                 this.attend = answer.toLowerCase() === "ya";
@@ -49,25 +54,4 @@ module.exports = class Attendance {
                 break;
         }
     }
-
-    setDate(date) {
-        this.date = date;
-    }
-
-    setAttend(attend) {
-        this.attend = attend;
-    }
-
-    setReason(reason) {
-        this.reason = reason;
-    }
-
-    setGained(gained) {
-        this.gained = gained;
-    }
-
-    setShared(shared) {
-        this.shared = shared;
-    }
-
-}
+};

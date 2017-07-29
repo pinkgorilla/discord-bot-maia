@@ -1,4 +1,4 @@
-class Sessions {
+class SessionManager {
     constructor() {
         this.sessions = new Map();
     }
@@ -15,5 +15,5 @@ class Sessions {
         return this.sessions.has(userId) ? this.sessions.get(userId) : null;
     }
 }
-var sessions = new Sessions();
-module.exports = sessions;
+var sessionManager = new SessionManager();
+module.exports = sessionManager;

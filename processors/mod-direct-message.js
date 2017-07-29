@@ -1,16 +1,15 @@
-var session = require("../modules/session");
+var sessionManager = require("../modules/session/session-manager");
 
-module.exports = function (message) {
+module.exports = function(message) {
     var user = message.author;
-    var activeSession = session.getActiveSession(user.id);
+    var activeSession = sessionManager.getActiveSession(user.id);
     if (activeSession) {
-        activeSession.validate(message.content);
 
-        if (activeSession.isComplete()) {
-            message.reply(activeSession.reply());
-            session.remove(user.id);
-        }
-        else
-            message.reply(activeSession.reply());
+        activeSession.process(message.content);
+
+        if (activeSession.isComplete())
+            sessionManager.remove(user.id);
+
+        message.reply(activeSession.response());
     }
-}
+};
