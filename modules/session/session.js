@@ -1,8 +1,7 @@
 module.exports = class Session {
-    constructor(dmChannel, name) {
+    constructor(name, context) {
         this.name = name || "UNKNOWN-SESSION";
-        this.channel = dmChannel;
-        this.user = dmChannel.recipient;
+        this.context = context;
     }
 
     process(message) {

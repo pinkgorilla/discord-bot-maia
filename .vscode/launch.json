@@ -9,7 +9,7 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceRoot}\\bot.js",
+            "program": "${workspaceRoot}\\index.js",
             "env": {
                 "token":"MzQwMzMwNzUwNjQ3OTkyMzMy.DFxAiQ.hPemptQo8tEoivS6o1k_NUwgsPQ"
             }

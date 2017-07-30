@@ -1,10 +1,13 @@
 const NUM_OF_STEPS = 5;
-var Session = require("./session");
+const Discord = require('discord.js');
+const Session = require("./session");
 
 module.exports = class AttendanceSession extends Session {
 
-    constructor(dmChannel) {
-        super(dmChannel, "Attendance Session");
+    constructor(context) {
+        super("Attendance Session", context);
+        this.user = context.author;
+
         this.data = {};
         this.data.date = Date.now;
         this.data.attend = false;
@@ -21,6 +24,31 @@ module.exports = class AttendanceSession extends Session {
             "Selesai, Terima kasih sudah meluangkan waktu untuk mengisi absen."
         ];
     }
+
+    run() {
+        return new Promise((resolve, reject) => {
+            var channel = this.context.channel;
+            var collector = new Discord.MessageCollector(channel, (message) => true, {});
+            channel.send(this.response());
+            collector.on("collect", (element, collector) => {
+                if (element.author.id === this.user.id) {
+
+                    this.process(element.content);
+
+                    if (this.isComplete()) {
+                        collector.stop(this.response());
+                    }
+                    else
+                        element.reply(this.response());
+                }
+            });
+
+            collector.on("end", function (collected, reason) {
+                resolve(reason);
+            })
+        });
+    }
+
 
     isComplete() {
         return this.step === NUM_OF_STEPS;
