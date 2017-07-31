@@ -1,4 +1,4 @@
-class SessionManager {
+class CommandSessionManager {
     constructor() {
         this.sessions = new Map();
     }
@@ -15,5 +15,5 @@ class SessionManager {
         return this.sessions.has(userId) ? this.sessions.get(userId) : null;
     }
 }
-var sessionManager = new SessionManager();
+var sessionManager = new CommandSessionManager();
 module.exports = sessionManager;
