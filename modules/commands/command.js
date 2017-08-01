@@ -1,76 +1,96 @@
+"use strict";
 const Clapp = require("clapp");
 const Discord = require('discord.js');
-const MOD_ORIGIN_CHANNEL = 1;
-const MOD_DM_CHANNEL = 2;
-const MOD_TEXT_CHANNEL = 4;
+const CHANNEL_ORIGIN = 1;
+const CHANNEL_DIRECT = 2;
+const CHANNEL_TEXT = 4;
 
-class Command extends Clapp.Command {
+module.exports = class Command extends Clapp.Command {
     constructor(options) {
         options.fn = (argv, context) => {
             return this.run(argv, context);
         };
-
         super(options);
         this.options = options;
-        this.options.CHANNEL_MOD = this.options.CHANNEL_MOD || MOD_ORIGIN_CHANNEL;
+        this.options.INITIATE_CHANNEL = this.options.INITIATE_CHANNEL || (CHANNEL_DIRECT | CHANNEL_TEXT);
+        this.options.INTERACTION_CHANNEL = this.options.INTERACTION_CHANNEL || CHANNEL_ORIGIN;
     }
 
-    _getChannel(message) {
-        switch (this.options.CHANNEL_MOD) {
-            case MOD_ORIGIN_CHANNEL:
+    _getInteractionChannel(discordMessage) {
+        switch (this.options.INTERACTION_CHANNEL) {
+            case CHANNEL_ORIGIN:
                 return Promise.resolve(message.channel);
                 break;
-            case MOD_DM_CHANNEL:
-                return context.channel.type === "dm" ? Promise.resolve(context.channel) : user.createDM();
+            case CHANNEL_DIRECT:
+                var user = discordMessage.author || discordMessage.recipient;
+                return discordMessage.channel.type === "dm" ? Promise.resolve(discordMessage.channel) : user.createDM();
                 break;
-            case MOD_TEXT_CHANNEL:
-                return context.channel.type === "text" ? Promise.resolve(context.channel) : Promise.reject("invalid channel");
+            case CHANNEL_TEXT:
+                return discordMessage.channel.type === "text" ? Promise.resolve(discordMessage.channel) : Promise.reject("invalid channel");
         }
     }
 
-    run(argv, context) {
-        return new Promise((resolve, reject) => {
-            var user = context.author || context.recipient;
-            this._getChannel(context)
-                .then(channel => {
-                    var collector = new Discord.MessageCollector(channel, (message) => true, {});
-                    var ctx = {
-                        user: user,
-                        step: 1,
-                        data: {},
-                        complete: false
-                    };
+    _createContext(argv, discordMessage) {
+        var initChannel = discordMessage.channel;
 
-                    this.beforeCollectMessage(channel);
+        if ((this.options.INITIATE_CHANNEL & CHANNEL_DIRECT) && initChannel.type !== "db")
+            return Promise.reject("Cannot execute command in this channel");
+        else if ((this.options.INITIATE_CHANNEL & CHANNEL_TEXT) && initChannel.type !== "text")
+            return Promise.reject("Cannot execute command in this channel");
 
-                    collector.on("collect", (element, collector) => {
-                        this.onCollectMessage(element, collector, ctx);
-                    });
 
-                    this.afterCollectMessage(channel);
+        return this._getInteractionChannel(discordMessage)
+            .then(channel => {
+                var user = discordMessage.author || discordMessage.recipient;
+                channel.reply = channel.reply || channel.send;
+                var context = {
+                    argv: argv,
+                    user: user,
+                    input: discordMessage,
+                    channel: channel,
+                    command: this
+                };
+                if ((this.options.INITIATE_CHANNEL & CHANNEL_TEXT) && initChannel.type === "text")
+                    context.guild = initChannel.guild;
+                return context;
+            })
+    }
 
-                    context.channel = channel;
-                    collector.on("end", function (collected, reason) {
-                        resolve({
-                            message: reason,
-                            context: context
-                        });
-                    })
+    run(argv, discordMessage) {
+        return this
+            ._createContext(argv, discordMessage)
+            .then(context => this.onCommandBegin(context))
+            .then(context => this.execute(context))
+            .then(context => this.onCommandComplete(context))
+            .catch(e => {
+                var channel = discordMessage.channel;
+                var user = channel.type === "text" ? discordMessage.author : null;
+                var messages = [":exclamation:", user, e];
+                channel.reply = channel.reply || channel.send;
+                return Promise.resolve({
+                    message: messages.join(" "),
+                    context: {
+                        channel: channel
+                    }
                 });
-        });
+            });
     }
 
-    beforeCollectMessage(channel) {
-
+    // resolve object to be used on execute
+    onCommandBegin(context) {
+        return Promise.resolve(context)
     }
 
-    onCollectMessage(element, collector, context) {
+    execute(context) {
         throw "Method is not implemented";
     }
 
-    afterCollectMessage(channel) {
-
+    // resolve object
+    onCommandComplete(context) {
+        return Promise.resolve({
+            message: context.output,
+            context: context
+        });
     }
 };
 
-module.exports = Command;

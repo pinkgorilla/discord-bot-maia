@@ -1,76 +1,55 @@
-const Clapp = require("clapp");
+"use strict";
 const Discord = require('discord.js');
-const MOD_ORIGIN_CHANNEL = 1;
-const MOD_DM_CHANNEL = 2;
-const MOD_TEXT_CHANNEL = 4;
+var Command = require("./command");
 
-class Command extends Clapp.Command {
+module.exports = class CollectorCommand extends Command {
     constructor(options) {
-        options.fn = (argv, context) => {
+        super(options);
+        this.fn = (argv, context) => {
             return this.run(argv, context);
         };
-
-        super(options);
-        this.options = options;
-        this.options.CHANNEL_MOD = this.options.CHANNEL_MOD || MOD_ORIGIN_CHANNEL;
     }
 
-    _getChannel(message) {
-        switch (this.options.CHANNEL_MOD) {
-            case MOD_ORIGIN_CHANNEL:
-                return Promise.resolve(message.channel);
-                break;
-            case MOD_DM_CHANNEL:
-                return context.channel.type === "dm" ? Promise.resolve(context.channel) : user.createDM();
-                break;
-            case MOD_TEXT_CHANNEL:
-                return context.channel.type === "text" ? Promise.resolve(context.channel) : Promise.reject("invalid channel");
-        }
+    execute(context) {
+        context.data = {};
+        context.step = 1;
+        return this.createCollector(context)
+            .then(context => this.beforeCollectMessage(context))
+            .then(context => this.collectMessage(context))
+            .then(context => this.afterCollectMessage(context));
     }
 
-    run(argv, context) {
+    createCollector(context) {
+        var channel = context.channel;
+        var collector = new Discord.MessageCollector(channel, (message) => true, {});
+        context.collector = collector;
+        return Promise.resolve(context);
+    }
+
+    collectMessage(context) {
         return new Promise((resolve, reject) => {
-            var user = context.author || context.recipient;
-            this._getChannel(context)
-                .then(channel => {
-                    var collector = new Discord.MessageCollector(channel, (message) => true, {});
-                    var ctx = {
-                        user: user,
-                        step: 1,
-                        data: {},
-                        complete: false
-                    };
+            var collector = context.collector;
+            collector.on("collect", (element, collector) => {
+                this.onCollectMessage(element, collector, context);
+            });
 
-                    this.beforeCollectMessage(channel);
-
-                    collector.on("collect", (element, collector) => {
-                        this.onCollectMessage(element, collector, ctx);
-                    });
-
-                    this.afterCollectMessage(channel);
-
-                    context.channel = channel;
-                    collector.on("end", function (collected, reason) {
-                        resolve({
-                            message: reason,
-                            context: context
-                        });
-                    })
-                });
+            collector.on("end", (collected, reason) => {
+                context.output = reason;
+                resolve(context);
+            })
         });
     }
 
-    beforeCollectMessage(channel) {
-
+    beforeCollectMessage(context) {
+        return Promise.resolve(context);
     }
 
+    // should call collector.stop method to complete collecting
     onCollectMessage(element, collector, context) {
         throw "Method is not implemented";
     }
 
-    afterCollectMessage(channel) {
-
+    afterCollectMessage(context) {
+        return Promise.resolve(context);
     }
 };
-
-module.exports = Command;

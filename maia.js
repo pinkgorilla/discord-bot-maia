@@ -2,6 +2,7 @@ const Clapp = require("clapp");
 const Discord = require('discord.js');
 const CommandSessionManager = require("./modules/command-session-manager");
 
+const client = new Discord.Client();
 var AttendanceCommand = require("./modules/commands/attendance");
 
 class Maia extends Clapp.App {
@@ -13,7 +14,7 @@ class Maia extends Clapp.App {
             version: "1.0",
             onReply: function (msg, context) {
                 var channel = context.channel;
-                channel.send(msg);
+                channel.reply(msg);
             }
         })
         // this.channel = new Clapp.App();
@@ -26,6 +27,29 @@ class Maia extends Clapp.App {
             if (!CommandSessionManager.getActiveSession(message.author.id))
                 this.parseInput(messageContent, message);
         }
+    }
+
+    start() {
+        client.on('ready', () => {
+            console.log('I am ready!');
+        });
+
+        client.on('disconnect', function (msg, code) {
+            if (code === 0)
+                return console.error(msg);
+            client.login(process.env.token);
+        });
+
+        client.on('message', message => {
+            if (message.author.bot)
+                return;
+            maia.evaluate(message);
+        });
+
+        client.login(process.env.token)
+            .catch(e => {
+                console.log(e);
+            });
     }
 };
 

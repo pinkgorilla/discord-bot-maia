@@ -1,19 +1,26 @@
+"use strict";
 const Discord = require('discord.js');
-const Command = require("./command");
+var CollectorCommand = require("./collector-command");
 
-module.exports = class AttendanceCommand extends Command {
+module.exports = class AttendanceCommand extends CollectorCommand {
 
     constructor() {
         super({
             name: "absen",
-            desc: "An example command"
+            desc: "An example command",
+            INITIATE_CHANNEL: 4,
+            INTERACTION_CHANNEL: 2
         });
     }
 
-    beforeCollectMessage(channel) {
-        var user = channel.author || channel.recipient;
-        channel.send(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
+    beforeCollectMessage(context) {
+        var user = context.user;
+        var channel = context.channel;
+        channel.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
+        return super.beforeCollectMessage(context);
+        // channel.send(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
     }
+
     onCollectMessage(element, collector, context) {
         var step = context.step;
         var attendance = context.data;
@@ -60,11 +67,34 @@ module.exports = class AttendanceCommand extends Command {
             }
 
             if (complete)
-                collector.stop(`Pengisian absen selesai\nTerima kasih ${user} atas kesediaannya mengisi absen.`);
+                collector.stop(`:ok: Pengisian absen selesai\nTerima kasih ${user} atas kesediaannya mengisi absen.`);
         }
 
         context.step = step;
         context.data = attendance;
         context.complete = complete;
+    }
+
+    afterCollectMessage(context) {
+        return new Promise((resolve, reject) => {
+
+            var attendance = context.data;
+            var amqp = require('amqplib/callback_api');
+            amqp.connect('amqp://rxzpfahs:ZJYk0DscAJTu8Oxda3Vf_skus_PpV9qw@fish.rmq.cloudamqp.com/rxzpfahs', function (err, conn) {
+                conn.createChannel(function (err, ch) {
+                    var exchangeName = 'ex-date-attendance-dev';
+                    attendance.serverId = context.guild.id;
+                    attendance.userId = context.user.id;
+                    var msg = JSON.stringify(attendance);
+
+                    ch.assertExchange(exchangeName, 'direct', { durable: false });
+                    ch.publish(exchangeName, '', new Buffer(msg));
+
+                    resolve(context);
+                    console.log(" [x] Sent %s", msg);
+                });
+            });
+
+        })
     }
 };
