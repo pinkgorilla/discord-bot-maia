@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "discord bot maia",
   "main": "index.js",
-  "engines": {
-    "node": "8.2.1"
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
