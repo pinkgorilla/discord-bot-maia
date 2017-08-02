@@ -16,7 +16,7 @@ module.exports = class AttendanceCommand extends CollectorCommand {
     beforeCollectMessage(context) { 
         var user = context.user;
         var channel = context.channel;
-        channel.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
+        context.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
 
         context.attendance = {};
         context.step = 1;

@@ -21,15 +21,6 @@ module.exports = class CollectorCommand extends Command {
     createCollector(context) {
         var channel = context.channel;
         var collector = new Discord.MessageCollector(channel, (message) => true, {});
-
-        collector.on("collect", (element, collector) => {
-            this.onCollectMessage(element, collector, context);
-        });
-
-        collector.on("end", (collected, reason) => {
-            context.output = reason;
-            resolve(context);
-        })
         context.collector = collector;
         return Promise.resolve(context);
     }

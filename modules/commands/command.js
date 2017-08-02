@@ -41,21 +41,20 @@ module.exports = class Command extends Clapp.Command {
 
         return this._getInteractionChannel(discordMessage)
             .then(channel => {
-                var user = discordMessage.author || discordMessage.recipient;
-                var _reply = channel.reply || channel.send;
-                channel.reply = _reply;
-                //  function (message) {
-                //     channel.startTyping();
-                //     _reply.bind(channel);
-                //     _reply(message);
-                //     channel.stopTyping();
-                // };
+                var user = discordMessage.author || discordMessage.recipient;                
                 var context = {
                     argv: argv,
                     user: user,
-                    source: discordMessage,                    
+                    source: discordMessage,
                     channel: channel,
-                    command: this
+                    command: this,
+                    reply: function (message) {
+                        var _reply = channel.reply || channel.send;
+                        channel.reply = _reply;
+                        channel.startTyping();
+                        _reply.call(channel, message);
+                        channel.stopTyping();
+                    }
                 };
                 if ((this.options.INITIATE_CHANNEL & CHANNEL_TEXT) && initChannel.type === "text")
                     context.guild = initChannel.guild;

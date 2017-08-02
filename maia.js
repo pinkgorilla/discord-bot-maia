@@ -16,7 +16,7 @@ class Maia extends Clapp.App {
             onReply: function (msg, context) {
                 var channel = context.channel;
                 channel.reply = channel.reply || channel.send;
-                channel.reply(msg);
+                context.reply(msg);
             }
         })
         // this.channel = new Clapp.App();
