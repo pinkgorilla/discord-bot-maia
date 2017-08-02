@@ -13,17 +13,19 @@ module.exports = class AttendanceCommand extends CollectorCommand {
         });
     }
 
-    beforeCollectMessage(context) {
+    beforeCollectMessage(context) { 
         var user = context.user;
         var channel = context.channel;
         channel.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
+
+        context.attendance = {};
+        context.step = 1;
         return super.beforeCollectMessage(context);
-        // channel.send(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
     }
 
     onCollectMessage(element, collector, context) {
         var step = context.step;
-        var attendance = context.data;
+        var attendance = context.attendance;
         var user = context.user;
         var channel = element.channel;
         var complete = context.complete;
@@ -71,27 +73,28 @@ module.exports = class AttendanceCommand extends CollectorCommand {
         }
 
         context.step = step;
-        context.data = attendance;
+        context.attendance = attendance;
         context.complete = complete;
     }
 
     afterCollectMessage(context) {
         return new Promise((resolve, reject) => {
 
-            var attendance = context.data;
+            var attendance = context.attendance;
             var amqp = require('amqplib/callback_api');
-            amqp.connect('amqp://rxzpfahs:ZJYk0DscAJTu8Oxda3Vf_skus_PpV9qw@fish.rmq.cloudamqp.com/rxzpfahs', function (err, conn) {
+            amqp.connect(process.env.AMQP_URI, function (err, conn) {
                 conn.createChannel(function (err, ch) {
-                    var exchangeName = 'ex-date-attendance-dev';
+                    var exchangeName = process.env.AMQP_EXCHANGE;
                     attendance.serverId = context.guild.id;
                     attendance.userId = context.user.id;
                     var msg = JSON.stringify(attendance);
 
                     ch.assertExchange(exchangeName, 'direct', { durable: false });
-                    ch.publish(exchangeName, '', new Buffer(msg));
-
-                    resolve(context);
-                    console.log(" [x] Sent %s", msg);
+                    var published = ch.publish(exchangeName, 'attendance', new Buffer(msg));
+                    if (published)
+                        resolve(context);
+                    else
+                        reject("failed to save attendance");
                 });
             });
 

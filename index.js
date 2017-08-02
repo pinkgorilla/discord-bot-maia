@@ -1,4 +1,4 @@
 const maia = require("./maia");
-// maia.start();
+maia.start();
 
 module.exports = maia;

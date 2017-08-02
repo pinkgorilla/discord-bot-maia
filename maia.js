@@ -3,7 +3,8 @@ const Discord = require('discord.js');
 const CommandSessionManager = require("./modules/command-session-manager");
 
 const client = new Discord.Client();
-var AttendanceCommand = require("./modules/commands/attendance");
+var AttendanceCommand = require("./modules/commands/attendance-command");
+var GuildCommand = require("./modules/commands/guild-command");
 
 class Maia extends Clapp.App {
     constructor() {
@@ -14,11 +15,13 @@ class Maia extends Clapp.App {
             version: "1.0",
             onReply: function (msg, context) {
                 var channel = context.channel;
+                channel.reply = channel.reply || channel.send;
                 channel.reply(msg);
             }
         })
         // this.channel = new Clapp.App();
         this.addCommand(new AttendanceCommand());
+        this.addCommand(new GuildCommand());
     }
 
     evaluate(message) {

@@ -42,11 +42,18 @@ module.exports = class Command extends Clapp.Command {
         return this._getInteractionChannel(discordMessage)
             .then(channel => {
                 var user = discordMessage.author || discordMessage.recipient;
-                channel.reply = channel.reply || channel.send;
+                var _reply = channel.reply || channel.send;
+                channel.reply = _reply;
+                //  function (message) {
+                //     channel.startTyping();
+                //     _reply.bind(channel);
+                //     _reply(message);
+                //     channel.stopTyping();
+                // };
                 var context = {
                     argv: argv,
                     user: user,
-                    input: discordMessage,
+                    source: discordMessage,                    
                     channel: channel,
                     command: this
                 };
@@ -66,7 +73,7 @@ module.exports = class Command extends Clapp.Command {
                 var channel = discordMessage.channel;
                 var user = channel.type === "text" ? discordMessage.author : null;
                 var messages = [":exclamation:", user, e];
-                channel.reply = channel.reply || channel.send;
+                // channel.reply = channel.reply || channel.send;
                 return Promise.resolve({
                     message: messages.join(" "),
                     context: {

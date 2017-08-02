@@ -11,8 +11,7 @@ module.exports = class CollectorCommand extends Command {
     }
 
     execute(context) {
-        context.data = {};
-        context.step = 1;
+        context.cancel = false;
         return this.createCollector(context)
             .then(context => this.beforeCollectMessage(context))
             .then(context => this.collectMessage(context))
@@ -22,22 +21,34 @@ module.exports = class CollectorCommand extends Command {
     createCollector(context) {
         var channel = context.channel;
         var collector = new Discord.MessageCollector(channel, (message) => true, {});
+
+        collector.on("collect", (element, collector) => {
+            this.onCollectMessage(element, collector, context);
+        });
+
+        collector.on("end", (collected, reason) => {
+            context.output = reason;
+            resolve(context);
+        })
         context.collector = collector;
         return Promise.resolve(context);
     }
 
     collectMessage(context) {
-        return new Promise((resolve, reject) => {
-            var collector = context.collector;
-            collector.on("collect", (element, collector) => {
-                this.onCollectMessage(element, collector, context);
-            });
+        if (context.cancel)
+            return Promise.resolve(context);
+        else
+            return new Promise((resolve, reject) => {
+                var collector = context.collector;
+                collector.on("collect", (element, collector) => {
+                    this.onCollectMessage(element, collector, context);
+                });
 
-            collector.on("end", (collected, reason) => {
-                context.output = reason;
-                resolve(context);
-            })
-        });
+                collector.on("end", (collected, reason) => {
+                    context.output = reason;
+                    resolve(context);
+                })
+            });
     }
 
     beforeCollectMessage(context) {
@@ -51,5 +62,9 @@ module.exports = class CollectorCommand extends Command {
 
     afterCollectMessage(context) {
         return Promise.resolve(context);
+    }
+    cancel(context, reason) {
+        context.cancel = true;
+        context.output = reason;
     }
 };
