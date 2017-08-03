@@ -1,6 +1,7 @@
 "use strict";
 const Discord = require('discord.js');
 var CollectorCommand = require("./collector-command");
+const constants = require("./constants");
 
 module.exports = class AttendanceCommand extends CollectorCommand {
 
@@ -8,12 +9,12 @@ module.exports = class AttendanceCommand extends CollectorCommand {
         super({
             name: "absen",
             desc: "An example command",
-            INITIATE_CHANNEL: 4,
-            INTERACTION_CHANNEL: 2
+            INITIATE_CHANNEL: constants.CHANNEL.DIRECT,
+            INTERACTION_CHANNEL: constants.CHANNEL.DIRECT
         });
     }
 
-    beforeCollectMessage(context) { 
+    beforeCollectMessage(context) {
         var user = context.user;
         var channel = context.channel;
         context.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);

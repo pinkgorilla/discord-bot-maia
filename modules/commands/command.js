@@ -1,9 +1,7 @@
 "use strict";
 const Clapp = require("clapp");
 const Discord = require('discord.js');
-const CHANNEL_ORIGIN = 1;
-const CHANNEL_DIRECT = 2;
-const CHANNEL_TEXT = 4;
+const constants = require("./constants");
 
 module.exports = class Command extends Clapp.Command {
     constructor(options) {
@@ -12,54 +10,63 @@ module.exports = class Command extends Clapp.Command {
         };
         super(options);
         this.options = options;
-        this.options.INITIATE_CHANNEL = this.options.INITIATE_CHANNEL || (CHANNEL_DIRECT | CHANNEL_TEXT);
-        this.options.INTERACTION_CHANNEL = this.options.INTERACTION_CHANNEL || CHANNEL_ORIGIN;
+        this.options.INITIATE_CHANNEL = this.options.INITIATE_CHANNEL || (constants.CHANNEL.DIRECT | constants.CHANNEL.GUILD);
+        this.options.INTERACTION_CHANNEL = this.options.INTERACTION_CHANNEL || constants.CHANNEL.ORIGIN;
     }
 
     _getInteractionChannel(discordMessage) {
         switch (this.options.INTERACTION_CHANNEL) {
-            case CHANNEL_ORIGIN:
+            case constants.CHANNEL.ORIGIN:
                 return Promise.resolve(message.channel);
                 break;
-            case CHANNEL_DIRECT:
+            case constants.CHANNEL.DIRECT:
                 var user = discordMessage.author || discordMessage.recipient;
                 return discordMessage.channel.type === "dm" ? Promise.resolve(discordMessage.channel) : user.createDM();
                 break;
-            case CHANNEL_TEXT:
+            case constants.CHANNEL.GUILD:
                 return discordMessage.channel.type === "text" ? Promise.resolve(discordMessage.channel) : Promise.reject("invalid channel");
         }
     }
 
     _createContext(argv, discordMessage) {
-        var initChannel = discordMessage.channel;
+        return new Promise((resolve, reject) => {
+            var user = discordMessage.author || discordMessage.recipient;
+            var context = {
+                command: this,
+                argv: argv,
+                source: discordMessage,
+                user: user
+            };
 
-        if ((this.options.INITIATE_CHANNEL & CHANNEL_DIRECT) && initChannel.type !== "db")
-            return Promise.reject("Cannot execute command in this channel");
-        else if ((this.options.INITIATE_CHANNEL & CHANNEL_TEXT) && initChannel.type !== "text")
-            return Promise.reject("Cannot execute command in this channel");
-
-
-        return this._getInteractionChannel(discordMessage)
-            .then(channel => {
-                var user = discordMessage.author || discordMessage.recipient;                
-                var context = {
-                    argv: argv,
-                    user: user,
-                    source: discordMessage,
-                    channel: channel,
-                    command: this,
-                    reply: function (message) {
-                        var _reply = channel.reply || channel.send;
-                        channel.reply = _reply;
-                        channel.startTyping();
-                        _reply.call(channel, message);
-                        channel.stopTyping();
-                    }
+            var callerChannel = context.source.channel.type === "dm" ? constants.CHANNEL.DIRECT : constants.CHANNEL.GUILD;
+            if (!(this.options.INITIATE_CHANNEL & callerChannel)) {
+                context.reply = function (message) {
+                    var _reply = discordMessage.reply;
+                    discordMessage.channel.startTyping();
+                    _reply.call(discordMessage, message);
+                    discordMessage.channel.stopTyping();
                 };
-                if ((this.options.INITIATE_CHANNEL & CHANNEL_TEXT) && initChannel.type === "text")
-                    context.guild = initChannel.guild;
-                return context;
-            })
+                reject({
+                    message: `Cannot execute command ${this.options.name} in this channel`,
+                    context: context
+                });
+            }
+            else {
+                this._getInteractionChannel(discordMessage)
+                    .then(channel => {
+                        context.channel = channel;
+                        context.reply = function (message) {
+                            var _reply = channel.reply || channel.send;
+                            channel.reply = _reply;
+                            channel.startTyping();
+                            _reply.call(channel, message);
+                            channel.stopTyping();
+                        }
+                        context.guild = discordMessage.channel.guild;
+                        resolve(context);
+                    });
+            } 
+        });
     }
 
     run(argv, discordMessage) {
@@ -69,15 +76,11 @@ module.exports = class Command extends Clapp.Command {
             .then(context => this.execute(context))
             .then(context => this.onCommandComplete(context))
             .catch(e => {
-                var channel = discordMessage.channel;
-                var user = channel.type === "text" ? discordMessage.author : null;
-                var messages = [":exclamation:", user, e];
-                // channel.reply = channel.reply || channel.send;
+                var user = e.context.user
+                var messages = [":exclamation:", user, e.message];
                 return Promise.resolve({
                     message: messages.join(" "),
-                    context: {
-                        channel: channel
-                    }
+                    context: e.context
                 });
             });
     }

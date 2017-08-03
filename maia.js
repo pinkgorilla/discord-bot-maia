@@ -13,9 +13,7 @@ class Maia extends Clapp.App {
             desc: "DATE servant bot.",
             prefix: "!",
             version: "1.0",
-            onReply: function (msg, context) {
-                var channel = context.channel;
-                channel.reply = channel.reply || channel.send;
+            onReply: function (msg, context) { 
                 context.reply(msg);
             }
         })
