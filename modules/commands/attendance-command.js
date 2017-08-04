@@ -9,7 +9,7 @@ module.exports = class AttendanceCommand extends CollectorCommand {
         super({
             name: "absen",
             desc: "An example command",
-            INITIATE_CHANNEL: constants.CHANNEL.DIRECT,
+            INITIATE_CHANNEL: constants.CHANNEL.GUILD,
             INTERACTION_CHANNEL: constants.CHANNEL.DIRECT
         });
     }
@@ -60,12 +60,12 @@ module.exports = class AttendanceCommand extends CollectorCommand {
             switch (step) {
                 case 2:
                     if (attendance.attend)
-                        channel.send("Hal apakah yang Anda dapatkan?");
+                        context.reply("Hal apakah yang Anda dapatkan?");
                     else
-                        channel.send("Apakah alasan Anda tidak menghadiri pertemuan DATE?");
+                        context.reply("Apakah alasan Anda tidak menghadiri pertemuan DATE?");
                     break;
                 case 3:
-                    channel.send("Hal apakah yang Anda bagikan?");
+                    context.reply("Hal apakah yang Anda bagikan?");
                     break;
             }
 

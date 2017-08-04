@@ -47,7 +47,7 @@ module.exports = class Command extends Clapp.Command {
                     discordMessage.channel.stopTyping();
                 };
                 reject({
-                    message: `Cannot execute command ${this.options.name} in this channel`,
+                    message: `Cannot execute command in this channel`,
                     context: context
                 });
             }
@@ -65,33 +65,47 @@ module.exports = class Command extends Clapp.Command {
                         context.guild = discordMessage.channel.guild;
                         resolve(context);
                     });
-            } 
+            }
         });
     }
 
     run(argv, discordMessage) {
         return this
             ._createContext(argv, discordMessage)
-            .then(context => this.onCommandBegin(context))
-            .then(context => this.execute(context))
-            .then(context => this.onCommandComplete(context))
+            .then(context => {
+                try {
+                    return this.onCommandBegin(context)
+                        .then(context => this.execute(context))
+                        .then(context => this.onCommandComplete(context))
+                        .catch(e => {
+                            var messages = [e];
+                            return Promise.reject({
+                                message: messages.join(" "),
+                                context: context
+                            });
+                        })
+                }
+                catch (error) {
+
+                }
+            })
             .catch(e => {
-                var user = e.context.user
-                var messages = [":exclamation:", user, e.message];
+                var messages = [`\n:exclamation: failed executing command: \`${this.name}\` - `, `*${e.message || e}* .`];
                 return Promise.resolve({
                     message: messages.join(" "),
                     context: e.context
                 });
-            });
+            })
     }
 
     // resolve object to be used on execute
     onCommandBegin(context) {
+        // return Promise.reject("Method is not implemented : onCommandBegin");
         return Promise.resolve(context)
     }
 
     execute(context) {
-        throw "Method is not implemented";
+        return Promise.reject("Method is not implemented : execute");
     }
 
     // resolve object
