@@ -3,6 +3,12 @@ const Discord = require('discord.js');
 var CollectorCommand = require("./collector-command");
 const constants = require("./constants");
 
+
+const QUESTION_1 = "```1. Apakah anda menghadiri pertemuan DATE? (ya|tidak)```";
+const QUESTION_2A = "```2. Hal apakah yang anda dapatkan?```";
+const QUESTION_2B = "```2. Apakah alasan Anda tidak menghadiri pertemuan DATE?```";
+const QUESTION_3 = "```3. Hal apakah yang anda bagikan?```";
+
 module.exports = class AttendanceCommand extends CollectorCommand {
 
     constructor() {
@@ -17,8 +23,7 @@ module.exports = class AttendanceCommand extends CollectorCommand {
     beforeCollectMessage(context) {
         var user = context.user;
         var channel = context.channel;
-        context.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
-
+        context.reply(`Anda akan melakukan pengisian data absen.\nSilahkan jawab pertanyaan-pertanyaan berikut.\n${QUESTION_1}`);
         context.attendance = {};
         context.step = 1;
         return super.beforeCollectMessage(context);
@@ -60,12 +65,12 @@ module.exports = class AttendanceCommand extends CollectorCommand {
             switch (step) {
                 case 2:
                     if (attendance.attend)
-                        context.reply("Hal apakah yang Anda dapatkan?");
+                        context.reply(QUESTION_2A);
                     else
-                        context.reply("Apakah alasan Anda tidak menghadiri pertemuan DATE?");
+                        context.reply(QUESTION_2B);
                     break;
                 case 3:
-                    context.reply("Hal apakah yang Anda bagikan?");
+                    context.reply(QUESTION_3);
                     break;
             }
 
@@ -86,12 +91,13 @@ module.exports = class AttendanceCommand extends CollectorCommand {
             amqp.connect(process.env.AMQP_URI, function (err, conn) {
                 conn.createChannel(function (err, ch) {
                     var exchangeName = process.env.AMQP_EXCHANGE;
+                    var attendanceKey = process.env.AMQP_ATTENDANCE_KEY;
                     attendance.serverId = context.guild.id;
                     attendance.userId = context.user.id;
                     var msg = JSON.stringify(attendance);
 
                     ch.assertExchange(exchangeName, 'direct', { durable: false });
-                    var published = ch.publish(exchangeName, 'attendance', new Buffer(msg));
+                    var published = ch.publish(exchangeName, attendanceKey, new Buffer(msg));
                     if (published)
                         resolve(context);
                     else

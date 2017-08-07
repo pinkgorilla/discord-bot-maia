@@ -3,6 +3,21 @@ const Discord = require('discord.js');
 const Clapp = require("clapp");
 var CollectorCommand = require("./collector-command");
 
+const QUESTION_SETUP_1 = "```Nama DATE```";
+const QUESTION_SETUP_2 = [
+    ["```",
+        "Hari pertemuan DATE?",
+        "\t1 - Senin",
+        "\t2 - Selasa",
+        "\t3 - Rabu",
+        "\t4 - Kamis",
+        "\t5 - Jumat",
+        "\t6 - Sabtu",
+        "\t7 - Minggu",
+        "(isi dengan angka)",
+        "```"].join("\n")
+].join("\n");
+
 module.exports = class GuildCommand extends CollectorCommand {
 
     constructor() {
@@ -40,14 +55,15 @@ module.exports = class GuildCommand extends CollectorCommand {
         var info = argv.flags.info;
 
         context.data = null;
-        if (info) {
+        if (setup) {
+            context.step = 1;
+            context.reply(`Konfigurasi DATE`);
+            context.reply(QUESTION_SETUP_1);
+        }
+        else if (info) {
             context.step = -1;
             var output = !context.data ? `:exclamation: tidak terdaftar` : `:ok: terdaftar`;
             this.cancel(context, output)
-        }
-        else if (setup) {
-            context.step = 1;
-            channel.reply(`Hi ${user}, yuk kita isi absen.\nApakah anda menghadiri pertemuan DATE?`);
         }
 
         return super.beforeCollectMessage(context);
@@ -62,30 +78,30 @@ module.exports = class GuildCommand extends CollectorCommand {
         if (element.author.id === user.id) {
             if (setup) {
                 var step = context.step;
-                var attendance = context.data;
+                var guildData = context.data || { guildId: context.guild.id, name: context.guild.name, schedule: 1 };
                 var channel = element.channel;
                 var complete = context.complete;
                 var response = element.content;
 
                 switch (step) {
                     case 1:
-                        var pattern = /(ya|iya|yes|hadir|datang)/i;
-                        attendance.attend = (response.match(pattern) || []).length > 0;
+                        guildData.name = response;
                         step++;
                         break;
                     case 2:
-                        if (attendance.attend) {
-                            attendance.gained = response;
+                        var pattern = /[1-7]/i;
+                        var match = response.match(pattern) || [];
+                        var schedule = match.length > 0 ? parseInt(match[0]) : 0;
+                        if (schedule >= 1 && schedule <= 7) {
+                            guildData.schedule = schedule;
+                            complete = true;
                             step++;
                         }
-                        else {
-                            attendance.reason = response;
-                            step = 0;
-                            complete = true;
-                        }
+                        else
+                            context.reply("Invalid value");
                         break;
                     case 3:
-                        attendance.shared = response;
+                        guildData.shared = response;
                         complete = true;
                         step = 0;
                         break;
@@ -93,13 +109,7 @@ module.exports = class GuildCommand extends CollectorCommand {
 
                 switch (step) {
                     case 2:
-                        if (attendance.attend)
-                            channel.send("Hal apakah yang Anda dapatkan?");
-                        else
-                            channel.send("Apakah alasan Anda tidak menghadiri pertemuan DATE?");
-                        break;
-                    case 3:
-                        channel.send("Hal apakah yang Anda bagikan?");
+                        context.reply(QUESTION_SETUP_2);
                         break;
                 }
 
@@ -107,13 +117,33 @@ module.exports = class GuildCommand extends CollectorCommand {
                     collector.stop(`:ok: Pengisian absen selesai\nTerima kasih ${user} atas kesediaannya mengisi absen.`);
 
                 context.step = step;
-                context.data = attendance;
+                context.data = guildData;
                 context.complete = complete;
             }
         }
     }
 
     afterCollectMessage(context) {
-        return Promise.resolve(context);
+        return new Promise((resolve, reject) => {
+
+            var guildData = context.data;
+            var amqp = require('amqplib/callback_api');
+            amqp.connect(process.env.AMQP_URI, function (err, conn) {
+                conn.createChannel(function (err, ch) {
+                    var exchangeName = process.env.AMQP_EXCHANGE;
+                    var guildSetupKey = process.env.AMQP_GUILD_SETUP_KEY;
+                    guildData.serverId = context.guild.id;
+                    var msg = JSON.stringify(guildData);
+
+                    ch.assertExchange(exchangeName, 'direct', { durable: false });
+                    var published = ch.publish(exchangeName, guildSetupKey, new Buffer(msg));
+                    if (published)
+                        resolve(context);
+                    else
+                        reject("failed to save attendance");
+                });
+            });
+
+        })
     }
 };

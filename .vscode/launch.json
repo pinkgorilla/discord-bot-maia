@@ -11,8 +11,10 @@
             "program": "${workspaceRoot}\\index.js",
             "env": {
                 "token": "MzQwMzMwNzUwNjQ3OTkyMzMy.DFxAiQ.hPemptQo8tEoivS6o1k_NUwgsPQ",
-                "AMQP_EXCHANGE": "ex-date-attendance-dev",
-                "AMQP_URI": "amqp://rxzpfahs:ZJYk0DscAJTu8Oxda3Vf_skus_PpV9qw@fish.rmq.cloudamqp.com/rxzpfahs"
+                "AMQP_EXCHANGE": "exchange-maia-dev",
+                "AMQP_ATTENDANCE_KEY": "attendance",
+                "AMQP_GUILD_SETUP_KEY": "guild-setup",
+                "AMQP_URI": "amqp://umkokwue:v3_qe4zDrB9zMrm3fR40rDART1zpve7g@orangutan.rmq.cloudamqp.com/umkokwue"
             }
         }
     ]
