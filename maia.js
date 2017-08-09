@@ -4,7 +4,7 @@ const CommandSessionManager = require("./modules/command-session-manager");
 
 const client = new Discord.Client();
 var AttendanceCommand = require("./modules/commands/attendance-command");
-var GuildCommand = require("./modules/commands/guild-command");
+var GuildCommand = require("./modules/commands/date-command");
 
 class Maia extends Clapp.App {
     constructor() {

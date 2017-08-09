@@ -5,17 +5,13 @@ var Command = require("./command");
 module.exports = class CollectorCommand extends Command {
     constructor(options) {
         super(options);
-        this.fn = (argv, context) => {
-            return this.run(argv, context);
-        };
     }
 
     execute(context) {
-        context.cancel = false;
         return this.createCollector(context)
-            .then(context => this.beforeCollectMessage(context))
-            .then(context => this.collectMessage(context))
-            .then(context => this.afterCollectMessage(context));
+            .then(context => this._beforeCollectMessage(context))
+            .then(context => this._collectMessage(context))
+            .then(context => this._afterCollectMessage(context));
     }
 
     createCollector(context) {
@@ -25,14 +21,30 @@ module.exports = class CollectorCommand extends Command {
         return Promise.resolve(context);
     }
 
-    collectMessage(context) {
-        if (context.cancel)
+    _collectMessage(context) {
+        if (context.complete)
             return Promise.resolve(context);
+        else if (context.cancel)
+            return Promise.reject(context.output);
         else
             return new Promise((resolve, reject) => {
                 var collector = context.collector;
                 collector.on("collect", (element, collector) => {
-                    this.onCollectMessage(element, collector, context);
+                    if (element.author.id === context.source.client.user.id)
+                        return;
+
+                    if (!context.complete) {
+                        var cancelRegExp = /(cancel|abort|quit)/i;
+                        var content = element.content;
+                        var match = content.match(cancelRegExp);
+                        if (match && match.length > 0)
+                            collector.stop("command cancelled");
+                        else
+                            this.onCollectMessage(element, collector, context);
+                    }
+
+                    if (context.complete)
+                        collector.stop(context.output);
                 });
 
                 collector.on("end", (collected, reason) => {
@@ -42,20 +54,25 @@ module.exports = class CollectorCommand extends Command {
             });
     }
 
+    _beforeCollectMessage(context) {
+        return this.beforeCollectMessage(context);
+    }
     beforeCollectMessage(context) {
         return Promise.resolve(context);
     }
 
     // should call collector.stop method to complete collecting
     onCollectMessage(element, collector, context) {
-        throw "Method is not implemented";
+        return Promise.reject("Method is not implemented");
     }
 
+    _afterCollectMessage(context) {
+        if (context.cancel)
+            return Promise.reject(context.output)
+        else
+            return this.afterCollectMessage(context);
+    }
     afterCollectMessage(context) {
         return Promise.resolve(context);
-    }
-    cancel(context, reason) {
-        context.cancel = true;
-        context.output = reason;
     }
 };

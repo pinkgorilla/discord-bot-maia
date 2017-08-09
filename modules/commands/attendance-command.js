@@ -21,20 +21,30 @@ module.exports = class AttendanceCommand extends CollectorCommand {
     }
 
     beforeCollectMessage(context) {
-        var user = context.user;
-        var channel = context.channel;
-        context.reply(`Anda akan melakukan pengisian data absen.\nSilahkan jawab pertanyaan-pertanyaan berikut.\n${QUESTION_1}`);
-        context.attendance = {};
-        context.step = 1;
-        return super.beforeCollectMessage(context);
+        var self = this;
+        var cancel = this.cancel;
+        return this.getGuildData(context)
+            .then(guild => {
+                if (guild) {
+                    var user = context.user;
+                    var channel = context.channel;
+                    context.reply(`Anda akan melakukan pengisian data absen.\nSilahkan jawab pertanyaan-pertanyaan berikut.\n${QUESTION_1}`);
+                    context.attendance = {};
+                    context.step = 1;
+                }
+                else {
+                    context.step = -1;
+                    this.cancel(context, `DATE tidak terdaftar`);
+                }
+                return super.beforeCollectMessage(context);
+            })
     }
 
     onCollectMessage(element, collector, context) {
         var step = context.step;
         var attendance = context.attendance;
         var user = context.user;
-        var channel = element.channel;
-        var complete = context.complete;
+        var channel = element.channel; 
 
         if (element.author.id === user.id) {
             var response = element.content;
@@ -52,13 +62,13 @@ module.exports = class AttendanceCommand extends CollectorCommand {
                     else {
                         attendance.reason = response;
                         step = 0;
-                        complete = true;
+                        this.complete(context, `:white_check_mark: Pengisian absen selesai\nTerima kasih ${user} atas kesediaannya mengisi absen.`);
                     }
                     break;
                 case 3:
                     attendance.shared = response;
-                    complete = true;
                     step = 0;
+                    this.complete(context, `:white_check_mark: Pengisian absen selesai\nTerima kasih ${user} atas kesediaannya mengisi absen.`);
                     break;
             }
 
@@ -73,14 +83,10 @@ module.exports = class AttendanceCommand extends CollectorCommand {
                     context.reply(QUESTION_3);
                     break;
             }
-
-            if (complete)
-                collector.stop(`:ok: Pengisian absen selesai\nTerima kasih ${user} atas kesediaannya mengisi absen.`);
         }
 
         context.step = step;
-        context.attendance = attendance;
-        context.complete = complete;
+        context.attendance = attendance; 
     }
 
     afterCollectMessage(context) {
@@ -89,7 +95,11 @@ module.exports = class AttendanceCommand extends CollectorCommand {
             var attendance = context.attendance;
             var amqp = require('amqplib/callback_api');
             amqp.connect(process.env.AMQP_URI, function (err, conn) {
+                if (err)
+                    reject("amqp failed to connect");
                 conn.createChannel(function (err, ch) {
+                    if (err)
+                        reject("amqp failed to connect");
                     var exchangeName = process.env.AMQP_EXCHANGE;
                     var attendanceKey = process.env.AMQP_ATTENDANCE_KEY;
                     attendance.serverId = context.guild.id;

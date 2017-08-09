@@ -1,4 +1,5 @@
 "use strict";
+const fetch = require("node-fetch");
 const Clapp = require("clapp");
 const Discord = require('discord.js');
 const constants = require("./constants");
@@ -6,7 +7,8 @@ const constants = require("./constants");
 module.exports = class Command extends Clapp.Command {
     constructor(options) {
         options.fn = (argv, context) => {
-            return this.run(argv, context);
+            var func = this.run;
+            return func.call(this, argv, context);
         };
         super(options);
         this.options = options;
@@ -35,7 +37,8 @@ module.exports = class Command extends Clapp.Command {
                 command: this,
                 argv: argv,
                 source: discordMessage,
-                user: user
+                user: user,
+                cancel: false
             };
 
             var callerChannel = context.source.channel.type === "dm" ? constants.CHANNEL.DIRECT : constants.CHANNEL.GUILD;
@@ -73,21 +76,16 @@ module.exports = class Command extends Clapp.Command {
         return this
             ._createContext(argv, discordMessage)
             .then(context => {
-                try {
-                    return this.onCommandBegin(context)
-                        .then(context => this.execute(context))
-                        .then(context => this.onCommandComplete(context))
-                        .catch(e => {
-                            var messages = [e];
-                            return Promise.reject({
-                                message: messages.join(" "),
-                                context: context
-                            });
-                        })
-                }
-                catch (error) {
-
-                }
+                return this._onCommandBegin(context)
+                    .then(context => this.execute(context))
+                    .then(context => this._onCommandComplete(context))
+                    .catch(e => {
+                        var messages = [e];
+                        return Promise.reject({
+                            message: messages.join(" "),
+                            context: context
+                        });
+                    });
             })
             .catch(e => {
                 var messages = [`\n:exclamation: failed executing command: \`${this.name}\` - `, `*${e.message || e}* .`];
@@ -99,8 +97,10 @@ module.exports = class Command extends Clapp.Command {
     }
 
     // resolve object to be used on execute
+    _onCommandBegin(context) {
+        return this.onCommandBegin(context);
+    }
     onCommandBegin(context) {
-        // return Promise.reject("Method is not implemented : onCommandBegin");
         return Promise.resolve(context)
     }
 
@@ -108,12 +108,42 @@ module.exports = class Command extends Clapp.Command {
         return Promise.reject("Method is not implemented : execute");
     }
 
+    _onCommandComplete(context) {
+        if (context.cancel)
+            return Promise.reject(context.output);
+        else
+            return this.onCommandComplete(context);
+    }
     // resolve object
     onCommandComplete(context) {
         return Promise.resolve({
             message: context.output,
             context: context
         });
+    }
+
+
+    cancel(context, reason) {
+        context.cancel = true;
+        context.output = reason;
+    }
+
+    complete(context, reason) {
+        context.complete = true;
+        context.output = reason;
+    }
+    getGuildData(context) {
+        if (context.guild && context.guild.id)
+            return fetch(`https://maia-loopback-pinkgorilla.c9users.io/api/Guilds/${context.guild.id}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error)
+                        return Promise.resolve(null)
+                    else
+                        return Promise.resolve(result);
+                });
+        else
+            return Promise.resolve(null);
     }
 };
 
