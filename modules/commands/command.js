@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const Clapp = require("clapp");
 const Discord = require('discord.js');
 const constants = require("./constants");
+const EventEmitter = require("events");
 
 module.exports = class Command extends Clapp.Command {
     constructor(options) {
@@ -14,17 +15,16 @@ module.exports = class Command extends Clapp.Command {
         this.options = options;
         this.options.INITIATE_CHANNEL = this.options.INITIATE_CHANNEL || (constants.CHANNEL.DIRECT | constants.CHANNEL.GUILD);
         this.options.INTERACTION_CHANNEL = this.options.INTERACTION_CHANNEL || constants.CHANNEL.ORIGIN;
+        this.event = new EventEmitter();
     }
 
     _getInteractionChannel(discordMessage) {
         switch (this.options.INTERACTION_CHANNEL) {
             case constants.CHANNEL.ORIGIN:
-                return Promise.resolve(message.channel);
-                break;
+                return Promise.resolve(discordMessage.channel);
             case constants.CHANNEL.DIRECT:
                 var user = discordMessage.author || discordMessage.recipient;
                 return discordMessage.channel.type === "dm" ? Promise.resolve(discordMessage.channel) : user.createDM();
-                break;
             case constants.CHANNEL.GUILD:
                 return discordMessage.channel.type === "text" ? Promise.resolve(discordMessage.channel) : Promise.reject("invalid channel");
         }
@@ -43,7 +43,7 @@ module.exports = class Command extends Clapp.Command {
 
             var callerChannel = context.source.channel.type === "dm" ? constants.CHANNEL.DIRECT : constants.CHANNEL.GUILD;
             if (!(this.options.INITIATE_CHANNEL & callerChannel)) {
-                context.reply = function (message) {
+                context.reply = function(message) {
                     var _reply = discordMessage.reply;
                     discordMessage.channel.startTyping();
                     _reply.call(discordMessage, message);
@@ -58,13 +58,13 @@ module.exports = class Command extends Clapp.Command {
                 this._getInteractionChannel(discordMessage)
                     .then(channel => {
                         context.channel = channel;
-                        context.reply = function (message) {
+                        context.reply = function(message) {
                             var _reply = channel.reply || channel.send;
                             channel.reply = _reply;
                             channel.startTyping();
                             _reply.call(channel, message);
                             channel.stopTyping();
-                        }
+                        };
                         context.guild = discordMessage.channel.guild;
                         resolve(context);
                     });
@@ -93,7 +93,7 @@ module.exports = class Command extends Clapp.Command {
                     message: messages.join(" "),
                     context: e.context
                 });
-            })
+            });
     }
 
     // resolve object to be used on execute
@@ -101,7 +101,7 @@ module.exports = class Command extends Clapp.Command {
         return this.onCommandBegin(context);
     }
     onCommandBegin(context) {
-        return Promise.resolve(context)
+        return Promise.resolve(context);
     }
 
     execute(context) {
@@ -121,8 +121,7 @@ module.exports = class Command extends Clapp.Command {
             context: context
         });
     }
-
-
+    
     cancel(context, reason) {
         context.cancel = true;
         context.output = reason;
@@ -132,13 +131,14 @@ module.exports = class Command extends Clapp.Command {
         context.complete = true;
         context.output = reason;
     }
+    
     getGuildData(context) {
         if (context.guild && context.guild.id)
             return fetch(`https://maia-loopback-pinkgorilla.c9users.io/api/Guilds/${context.guild.id}`)
                 .then(response => response.json())
                 .then(result => {
                     if (result.error)
-                        return Promise.resolve(null)
+                        return Promise.resolve(null);
                     else
                         return Promise.resolve(result);
                 });
@@ -146,4 +146,3 @@ module.exports = class Command extends Clapp.Command {
             return Promise.resolve(null);
     }
 };
-

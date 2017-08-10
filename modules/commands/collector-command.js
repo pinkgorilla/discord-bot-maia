@@ -37,8 +37,10 @@ module.exports = class CollectorCommand extends Command {
                         var cancelRegExp = /(cancel|abort|quit)/i;
                         var content = element.content;
                         var match = content.match(cancelRegExp);
-                        if (match && match.length > 0)
+                        if (match && match.lenth > 0) {
+                            context.cancel = true;
                             collector.stop("command cancelled");
+                        }
                         else
                             this.onCollectMessage(element, collector, context);
                     }
@@ -50,7 +52,7 @@ module.exports = class CollectorCommand extends Command {
                 collector.on("end", (collected, reason) => {
                     context.output = reason;
                     resolve(context);
-                })
+                });
             });
     }
 
@@ -68,9 +70,9 @@ module.exports = class CollectorCommand extends Command {
 
     _afterCollectMessage(context) {
         if (context.cancel)
-            return Promise.reject(context.output)
-        else
-            return this.afterCollectMessage(context);
+            return Promise.reject(context.output);
+
+        return this.afterCollectMessage(context);
     }
     afterCollectMessage(context) {
         return Promise.resolve(context);

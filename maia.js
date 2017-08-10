@@ -4,55 +4,58 @@ const CommandSessionManager = require("./modules/command-session-manager");
 
 const client = new Discord.Client();
 var AttendanceCommand = require("./modules/commands/attendance-command");
-var GuildCommand = require("./modules/commands/date-command");
+var GuildCommand = require("./modules/commands/date-command"); 
+var PingCommand = require("./modules/commands/ping-command");
 
-class Maia extends Clapp.App {
+class Maia extends Discord.Client {
     constructor() {
-        super({
+        super();
+        var app = new Clapp.App({
             name: "Maia",
             desc: "DATE servant bot.",
             prefix: "!",
             version: "1.0",
-            onReply: function (msg, context) { 
+            onReply: function(msg, context) {
                 context.reply(msg);
             }
-        })
-        // this.channel = new Clapp.App();
-        this.addCommand(new AttendanceCommand());
-        this.addCommand(new GuildCommand());
+        });
+        app.addCommand(new AttendanceCommand());
+        app.addCommand(new GuildCommand());
+        app.addCommand(new PingCommand());
+        this.app = app;
     }
 
     evaluate(message) {
         var messageContent = message.content;
-        if (this.isCliSentence(messageContent)) {
+        if (this.app.isCliSentence(messageContent)) {
             if (!CommandSessionManager.getActiveSession(message.author.id))
-                this.parseInput(messageContent, message);
+                this.app.parseInput(messageContent, message);
         }
     }
 
     start() {
-        client.on('ready', () => {
+        this.on('ready', function() {
             console.log('I am ready!');
         });
 
-        client.on('disconnect', function (msg, code) {
+        this.on('disconnect', function(msg, code) {
             if (code === 0)
                 return console.error(msg);
-            client.login(process.env.token);
+            this.login(process.env.token);
         });
 
-        client.on('message', message => {
-            if (message.author.bot)
+        this.on('message', function(message) {
+            if (message.author.id === this.user.id)
                 return;
-            maia.evaluate(message);
+            this.evaluate(message);
         });
 
-        client.login(process.env.token)
+        this.login(process.env.token)
             .catch(e => {
                 console.log(e);
             });
     }
-};
+}
 
 var maia = new Maia();
 module.exports = maia;

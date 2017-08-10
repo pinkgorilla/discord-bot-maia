@@ -1,6 +1,5 @@
-"use strict";
+"use strict"; 
 
-const Discord = require('discord.js');
 const Clapp = require("clapp");
 var CollectorCommand = require("./collector-command");
 
