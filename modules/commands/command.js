@@ -59,10 +59,12 @@ module.exports = class Command extends Clapp.Command {
                     .then(channel => {
                         context.channel = channel;
                         context.reply = function(message) {
-                            var _reply = channel.reply || channel.send;
-                            channel.reply = _reply;
+                            var _reply = discordMessage.channel === channel ? discordMessage.reply : (channel.reply || channel.send);
                             channel.startTyping();
-                            _reply.call(channel, message);
+                            if (discordMessage.channel === channel)
+                                _reply.call(discordMessage, message);
+                            else
+                                _reply.call(channel, message);
                             channel.stopTyping();
                         };
                         context.guild = discordMessage.channel.guild;
@@ -121,7 +123,7 @@ module.exports = class Command extends Clapp.Command {
             context: context
         });
     }
-    
+
     cancel(context, reason) {
         context.cancel = true;
         context.output = reason;
@@ -131,7 +133,7 @@ module.exports = class Command extends Clapp.Command {
         context.complete = true;
         context.output = reason;
     }
-    
+
     getGuildData(context) {
         if (context.guild && context.guild.id)
             return fetch(`https://maia-loopback-pinkgorilla.c9users.io/api/Guilds/${context.guild.id}`)
